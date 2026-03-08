@@ -3,28 +3,28 @@ import pandas as pd
 import pickle
 import plotly.express as px
 
-# -------------------------------
-# Page Config
-# -------------------------------
+# -----------------------------
+# Page Settings
+# -----------------------------
 st.set_page_config(
-    page_title="AI Carbon Emission Dashboard",
+    page_title="AI Carbon Emission Analytics",
     layout="wide"
 )
 
-# -------------------------------
+# -----------------------------
 # Load Data
-# -------------------------------
+# -----------------------------
 df = pd.read_csv("owid-co2-data.csv")
 
-# create carbon intensity
+# Carbon intensity calculation
 df["carbon_intensity"] = df["co2"] / df["primary_energy_consumption"]
 
-# load trained model
-model = pickle.load(open("co2_model.pkl","rb"))
+# Load ML model
+model = pickle.load(open("co2_model.pkl", "rb"))
 
-# -------------------------------
+# -----------------------------
 # Sidebar Navigation
-# -------------------------------
+# -----------------------------
 st.sidebar.title("Navigation")
 
 page = st.sidebar.selectbox(
@@ -34,18 +34,17 @@ page = st.sidebar.selectbox(
         "Global Trends",
         "Top Emitters",
         "Carbon Intensity",
+        "Emission Map",
         "AI Predictor"
     ]
 )
 
-# -------------------------------
+# -----------------------------
 # Dashboard Overview
-# -------------------------------
+# -----------------------------
 if page == "Dashboard Overview":
 
     st.title("AI Carbon Emission Analytics Platform")
-
-    st.subheader("Key Climate Indicators")
 
     col1, col2, col3 = st.columns(3)
 
@@ -53,9 +52,9 @@ if page == "Dashboard Overview":
     col2.metric("Years Covered", df["year"].nunique())
     col3.metric("Latest Year", int(df["year"].max()))
 
-# -------------------------------
-# Global Trends
-# -------------------------------
+# -----------------------------
+# Global Emission Trends
+# -----------------------------
 elif page == "Global Trends":
 
     st.title("Global CO₂ Emissions Trend")
@@ -71,9 +70,9 @@ elif page == "Global Trends":
 
     st.plotly_chart(fig, use_container_width=True)
 
-# -------------------------------
-# Top Emitters
-# -------------------------------
+# -----------------------------
+# Top CO2 Emitters
+# -----------------------------
 elif page == "Top Emitters":
 
     st.title("Top CO₂ Emitting Countries")
@@ -96,23 +95,23 @@ elif page == "Top Emitters":
 
     st.plotly_chart(fig, use_container_width=True)
 
-# -------------------------------
+# -----------------------------
 # Carbon Intensity Analysis
-# -------------------------------
+# -----------------------------
 elif page == "Carbon Intensity":
 
     st.title("Carbon Intensity Analysis")
 
     latest_year = df["year"].max()
 
-    high_intensity = (
+    intensity_data = (
         df[df["year"] == latest_year]
         .sort_values("carbon_intensity", ascending=False)
         .head(10)
     )
 
     fig = px.bar(
-        high_intensity,
+        intensity_data,
         x="carbon_intensity",
         y="country",
         orientation="h",
@@ -121,9 +120,30 @@ elif page == "Carbon Intensity":
 
     st.plotly_chart(fig, use_container_width=True)
 
-# -------------------------------
+# -----------------------------
+# Global Emission Map
+# -----------------------------
+elif page == "Emission Map":
+
+    st.title("Global CO₂ Emission Map")
+
+    latest_year = df["year"].max()
+    map_data = df[df["year"] == latest_year]
+
+    fig = px.choropleth(
+        map_data,
+        locations="iso_code",
+        color="co2",
+        hover_name="country",
+        color_continuous_scale="Reds",
+        title="Global CO₂ Emissions by Country"
+    )
+
+    st.plotly_chart(fig, use_container_width=True)
+
+# -----------------------------
 # AI Prediction Tool
-# -------------------------------
+# -----------------------------
 elif page == "AI Predictor":
 
     st.title("AI CO₂ Emission Predictor")
@@ -135,21 +155,20 @@ elif page == "AI Predictor":
         population = st.number_input("Population", value=100000000)
 
     with col2:
-        gdp = st.number_input("GDP", value=1000000000000)
-        energy = st.number_input("Primary Energy Consumption", value=10000)
+        gdp = st.number_input("GDP (USD)", value=1000000000000)
+        energy = st.number_input("Primary Energy Consumption (TWh)", value=10000)
 
     if st.button("Predict CO₂ Emissions"):
 
         input_data = [[year, population, gdp, energy]]
 
-        prediction = model.predict(input_data)
+        prediction = model.predict(input_data)[0]
 
-        co2_value = prediction[0]
-
-        if co2_value > 1000:
-            gt = co2_value / 1000
+        # Convert units
+        if prediction > 1000:
+            gt = prediction / 1000
             st.success(f"Predicted CO₂ Emissions: {gt:.2f} Gigatonnes (GtCO₂)")
         else:
-            st.success(f"Predicted CO₂ Emissions: {co2_value:.2f} Million Tonnes (MtCO₂)")
+            st.success(f"Predicted CO₂ Emissions: {prediction:.2f} Million Tonnes (MtCO₂)")
 
-        st.info("Units: CO₂ emissions are measured in Million Tonnes (MtCO₂) or Gigatonnes (GtCO2)")
+        st.info("CO₂ emissions are measured in Million Tonnes (MtCO₂).")
