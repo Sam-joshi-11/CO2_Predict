@@ -2,7 +2,6 @@ import streamlit as st
 import pandas as pd
 import pickle
 import matplotlib.pyplot as plt
-import geopandas as gpd
 
 # -----------------------------
 # Page Settings
@@ -128,27 +127,18 @@ elif page == "Emission Map":
     latest_year = df["year"].max()
     map_data = df[df["year"] == latest_year]
 
-    world = gpd.read_file(
-        "https://naturalearth.s3.amazonaws.com/110m_cultural/ne_110m_admin_0_countries.zip"
+    import plotly.express as px
+
+    fig = px.choropleth(
+        map_data,
+        locations="iso_code",
+        color="co2",
+        hover_name="country",
+        color_continuous_scale="Reds",
+        title="Global CO₂ Emissions by Country"
     )
 
-    merged = world.merge(map_data, how="left", left_on="ISO_A3", right_on="iso_code")
-
-    fig, ax = plt.subplots(figsize=(12,6))
-
-    merged.plot(
-        column="co2",
-        cmap="Reds",
-        linewidth=0.5,
-        ax=ax,
-        edgecolor="black",
-        legend=True
-    )
-
-    ax.set_title("Global CO₂ Emissions by Country")
-
-    st.pyplot(fig)
-
+    st.plotly_chart(fig, use_container_width=True)
 # -----------------------------
 # AI Prediction Tool
 # -----------------------------
