@@ -11,16 +11,37 @@ st.set_page_config(
     layout="wide"
 )
 
+st.title("AI Carbon Emission Analytics Platform")
+
 # -----------------------------
 # Load Data
 # -----------------------------
-df = pd.read_csv("owid-co2-data.csv")
+@st.cache_data
+def load_data():
+    df = pd.read_csv("owid-co2-data.csv")
 
-# Carbon intensity calculation
-df["carbon_intensity"] = df["co2"] / df["primary_energy_consumption"]
+    # Handle divide by zero safely
+    df["carbon_intensity"] = df["co2"] / df["primary_energy_consumption"]
+    df["carbon_intensity"] = df["carbon_intensity"].replace(
+        [float("inf"), -float("inf")], None
+    )
 
-# Load ML model
-model = pickle.load(open("co2_model.pkl", "rb"))
+    return df
+
+
+df = load_data()
+
+# -----------------------------
+# Load ML Model
+# -----------------------------
+@st.cache_resource
+def load_model():
+    with open("co2_model.pkl", "rb") as f:
+        model = pickle.load(f)
+    return model
+
+
+model = load_model()
 
 # -----------------------------
 # Sidebar Navigation
@@ -43,8 +64,6 @@ page = st.sidebar.selectbox(
 # -----------------------------
 if page == "Dashboard Overview":
 
-    st.title("AI Carbon Emission Analytics Platform")
-
     col1, col2, col3 = st.columns(3)
 
     col1.metric("Countries", df["country"].nunique())
@@ -56,7 +75,7 @@ if page == "Dashboard Overview":
 # -----------------------------
 elif page == "Global Trends":
 
-    st.title("Global CO₂ Emissions Trend")
+    st.header("Global CO₂ Emissions Trend")
 
     global_co2 = df.groupby("year")["co2"].sum()
 
@@ -67,13 +86,14 @@ elif page == "Global Trends":
     ax.set_title("Global CO₂ Emissions Over Time")
 
     st.pyplot(fig)
+    plt.close(fig)
 
 # -----------------------------
-# Top CO2 Emitters
+# Top CO₂ Emitters
 # -----------------------------
 elif page == "Top Emitters":
 
-    st.title("Top CO₂ Emitting Countries")
+    st.header("Top CO₂ Emitting Countries")
 
     latest_year = df["year"].max()
 
@@ -84,18 +104,21 @@ elif page == "Top Emitters":
     )
 
     fig, ax = plt.subplots()
+
     ax.barh(top_emitters["country"], top_emitters["co2"])
     ax.set_xlabel("CO₂ Emissions")
     ax.set_title("Top 10 CO₂ Emitting Countries")
+    ax.invert_yaxis()
 
     st.pyplot(fig)
+    plt.close(fig)
 
 # -----------------------------
 # Carbon Intensity Analysis
 # -----------------------------
 elif page == "Carbon Intensity":
 
-    st.title("Carbon Intensity Analysis")
+    st.header("Carbon Intensity Analysis")
 
     latest_year = df["year"].max()
 
@@ -106,18 +129,21 @@ elif page == "Carbon Intensity":
     )
 
     fig, ax = plt.subplots()
+
     ax.barh(intensity_data["country"], intensity_data["carbon_intensity"])
     ax.set_xlabel("Carbon Intensity")
     ax.set_title("Countries with Highest Carbon Intensity")
+    ax.invert_yaxis()
 
     st.pyplot(fig)
+    plt.close(fig)
 
 # -----------------------------
 # AI Prediction Tool
 # -----------------------------
 elif page == "AI Predictor":
 
-    st.title("AI CO₂ Emission Predictor")
+    st.header("AI CO₂ Emission Predictor")
 
     col1, col2 = st.columns(2)
 
