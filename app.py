@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import pickle
 import matplotlib.pyplot as plt
+import geopandas as gpd
 
 # -----------------------------
 # Page Settings
@@ -11,37 +12,17 @@ st.set_page_config(
     layout="wide"
 )
 
-st.title("AI Carbon Emission Analytics Platform")
-
 # -----------------------------
 # Load Data
 # -----------------------------
-@st.cache_data
-def load_data():
-    df = pd.read_csv("owid-co2-data.csv")
+df = pd.read_csv("owid-co2-data.csv")
 
-    # Handle divide by zero safely
-    df["carbon_intensity"] = df["co2"] / df["primary_energy_consumption"]
-    df["carbon_intensity"] = df["carbon_intensity"].replace(
-        [float("inf"), -float("inf")], None
-    )
+# Safe carbon intensity calculation
+df["carbon_intensity"] = df["co2"] / df["primary_energy_consumption"]
+df["carbon_intensity"] = df["carbon_intensity"].replace([float("inf"), -float("inf")], None)
 
-    return df
-
-
-df = load_data()
-
-# -----------------------------
-# Load ML Model
-# -----------------------------
-@st.cache_resource
-def load_model():
-    with open("co2_model.pkl", "rb") as f:
-        model = pickle.load(f)
-    return model
-
-
-model = load_model()
+# Load ML model
+model = pickle.load(open("co2_model.pkl", "rb"))
 
 # -----------------------------
 # Sidebar Navigation
@@ -55,6 +36,7 @@ page = st.sidebar.selectbox(
         "Global Trends",
         "Top Emitters",
         "Carbon Intensity",
+        "Emission Map",
         "AI Predictor"
     ]
 )
@@ -63,6 +45,8 @@ page = st.sidebar.selectbox(
 # Dashboard Overview
 # -----------------------------
 if page == "Dashboard Overview":
+
+    st.title("AI Carbon Emission Analytics Platform")
 
     col1, col2, col3 = st.columns(3)
 
@@ -75,25 +59,25 @@ if page == "Dashboard Overview":
 # -----------------------------
 elif page == "Global Trends":
 
-    st.header("Global CO₂ Emissions Trend")
+    st.title("Global CO₂ Emissions Trend")
 
     global_co2 = df.groupby("year")["co2"].sum()
 
     fig, ax = plt.subplots()
     ax.plot(global_co2.index, global_co2.values)
+
     ax.set_xlabel("Year")
     ax.set_ylabel("CO₂ Emissions")
     ax.set_title("Global CO₂ Emissions Over Time")
 
     st.pyplot(fig)
-    plt.close(fig)
 
 # -----------------------------
-# Top CO₂ Emitters
+# Top CO2 Emitters
 # -----------------------------
 elif page == "Top Emitters":
 
-    st.header("Top CO₂ Emitting Countries")
+    st.title("Top CO₂ Emitting Countries")
 
     latest_year = df["year"].max()
 
@@ -108,17 +92,15 @@ elif page == "Top Emitters":
     ax.barh(top_emitters["country"], top_emitters["co2"])
     ax.set_xlabel("CO₂ Emissions")
     ax.set_title("Top 10 CO₂ Emitting Countries")
-    ax.invert_yaxis()
 
     st.pyplot(fig)
-    plt.close(fig)
 
 # -----------------------------
 # Carbon Intensity Analysis
 # -----------------------------
 elif page == "Carbon Intensity":
 
-    st.header("Carbon Intensity Analysis")
+    st.title("Carbon Intensity Analysis")
 
     latest_year = df["year"].max()
 
@@ -133,17 +115,46 @@ elif page == "Carbon Intensity":
     ax.barh(intensity_data["country"], intensity_data["carbon_intensity"])
     ax.set_xlabel("Carbon Intensity")
     ax.set_title("Countries with Highest Carbon Intensity")
-    ax.invert_yaxis()
 
     st.pyplot(fig)
-    plt.close(fig)
+
+# -----------------------------
+# Global Emission Map
+# -----------------------------
+elif page == "Emission Map":
+
+    st.title("Global CO₂ Emission Map")
+
+    latest_year = df["year"].max()
+    map_data = df[df["year"] == latest_year]
+
+    world = gpd.read_file(
+        "https://naturalearth.s3.amazonaws.com/110m_cultural/ne_110m_admin_0_countries.zip"
+    )
+
+    merged = world.merge(map_data, how="left", left_on="ISO_A3", right_on="iso_code")
+
+    fig, ax = plt.subplots(figsize=(12,6))
+
+    merged.plot(
+        column="co2",
+        cmap="Reds",
+        linewidth=0.5,
+        ax=ax,
+        edgecolor="black",
+        legend=True
+    )
+
+    ax.set_title("Global CO₂ Emissions by Country")
+
+    st.pyplot(fig)
 
 # -----------------------------
 # AI Prediction Tool
 # -----------------------------
 elif page == "AI Predictor":
 
-    st.header("AI CO₂ Emission Predictor")
+    st.title("AI CO₂ Emission Predictor")
 
     col1, col2 = st.columns(2)
 
@@ -158,7 +169,6 @@ elif page == "AI Predictor":
     if st.button("Predict CO₂ Emissions"):
 
         input_data = [[year, population, gdp, energy]]
-
         prediction = model.predict(input_data)[0]
 
         if prediction > 1000:
@@ -166,5 +176,3 @@ elif page == "AI Predictor":
             st.success(f"Predicted CO₂ Emissions: {gt:.2f} Gigatonnes (GtCO₂)")
         else:
             st.success(f"Predicted CO₂ Emissions: {prediction:.2f} Million Tonnes (MtCO₂)")
-
-        st.info("CO₂ emissions are measured in Million Tonnes (MtCO₂) or Gigatonnes (GtCO₂).")
