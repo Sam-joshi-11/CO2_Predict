@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 import pickle
-import plotly.express as px
+import matplotlib.pyplot as plt
 
 # -----------------------------
 # Page Settings
@@ -34,7 +34,6 @@ page = st.sidebar.selectbox(
         "Global Trends",
         "Top Emitters",
         "Carbon Intensity",
-        "Emission Map",
         "AI Predictor"
     ]
 )
@@ -59,16 +58,15 @@ elif page == "Global Trends":
 
     st.title("Global CO₂ Emissions Trend")
 
-    global_co2 = df.groupby("year")["co2"].sum().reset_index()
+    global_co2 = df.groupby("year")["co2"].sum()
 
-    fig = px.line(
-        global_co2,
-        x="year",
-        y="co2",
-        title="Global CO₂ Emissions Over Time"
-    )
+    fig, ax = plt.subplots()
+    ax.plot(global_co2.index, global_co2.values)
+    ax.set_xlabel("Year")
+    ax.set_ylabel("CO₂ Emissions")
+    ax.set_title("Global CO₂ Emissions Over Time")
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.pyplot(fig)
 
 # -----------------------------
 # Top CO2 Emitters
@@ -85,15 +83,12 @@ elif page == "Top Emitters":
         .head(10)
     )
 
-    fig = px.bar(
-        top_emitters,
-        x="co2",
-        y="country",
-        orientation="h",
-        title="Top 10 CO₂ Emitting Countries"
-    )
+    fig, ax = plt.subplots()
+    ax.barh(top_emitters["country"], top_emitters["co2"])
+    ax.set_xlabel("CO₂ Emissions")
+    ax.set_title("Top 10 CO₂ Emitting Countries")
 
-    st.plotly_chart(fig, use_container_width=True)
+    st.pyplot(fig)
 
 # -----------------------------
 # Carbon Intensity Analysis
@@ -110,36 +105,12 @@ elif page == "Carbon Intensity":
         .head(10)
     )
 
-    fig = px.bar(
-        intensity_data,
-        x="carbon_intensity",
-        y="country",
-        orientation="h",
-        title="Countries with Highest Carbon Intensity"
-    )
+    fig, ax = plt.subplots()
+    ax.barh(intensity_data["country"], intensity_data["carbon_intensity"])
+    ax.set_xlabel("Carbon Intensity")
+    ax.set_title("Countries with Highest Carbon Intensity")
 
-    st.plotly_chart(fig, use_container_width=True)
-
-# -----------------------------
-# Global Emission Map
-# -----------------------------
-elif page == "Emission Map":
-
-    st.title("Global CO₂ Emission Map")
-
-    latest_year = df["year"].max()
-    map_data = df[df["year"] == latest_year]
-
-    fig = px.choropleth(
-        map_data,
-        locations="iso_code",
-        color="co2",
-        hover_name="country",
-        color_continuous_scale="Reds",
-        title="Global CO₂ Emissions by Country"
-    )
-
-    st.plotly_chart(fig, use_container_width=True)
+    st.pyplot(fig)
 
 # -----------------------------
 # AI Prediction Tool
@@ -164,11 +135,10 @@ elif page == "AI Predictor":
 
         prediction = model.predict(input_data)[0]
 
-        # Convert units
         if prediction > 1000:
             gt = prediction / 1000
             st.success(f"Predicted CO₂ Emissions: {gt:.2f} Gigatonnes (GtCO₂)")
         else:
             st.success(f"Predicted CO₂ Emissions: {prediction:.2f} Million Tonnes (MtCO₂)")
 
-        st.info("CO₂ emissions are measured in Million Tonnes (MtCO₂) or in Gigatonnes (GtCO₂) .")
+        st.info("CO₂ emissions are measured in Million Tonnes (MtCO₂) or Gigatonnes (GtCO₂).")
